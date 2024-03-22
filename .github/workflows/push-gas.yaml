@@ -1,0 +1,60 @@
+name: push-gas
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - ".github/workflows/push-gas.yaml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "package.json"
+          cache: "yarn"
+
+      - name: Install packages
+        run: |
+          yarn install
+
+      - name: Create .clasprc.json
+        run: |
+          cat << EOS > ~/.clasprc.json
+          {
+            "token": {
+              "access_token": "${{ secrets.ACCESS_TOKEN }}",
+              "refresh_token": "${{ secrets.REFRESH_TOKEN }}",
+              "scope": "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/logging.read https://www.googleapis.com/auth/script.deployments https://www.googleapis.com/auth/service.management https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/script.projects https://www.googleapis.com/auth/script.webapp.deploy openid https://www.googleapis.com/auth/userinfo.email",
+              "token_type": "Bearer",
+              "id_token": "${{ secrets.ID_TOKEN }}",
+              "expiry_date": "${{ secrets.EXPIRY_DATE }}"
+            },
+            "oauth2ClientSettings": {
+              "clientId": "${{ secrets.CLIENT_ID }}",
+              "clientSecret": "${{ secrets.CLIENT_SECRET }}",
+              "redirectUri": "http://localhost"
+            },
+            "isLocalCreds": false
+          }
+          EOS
+
+      - name: Create .clasp.json
+        run: |
+          cat << EOS > ./.clasp.json
+          {
+            "scriptId": "${{ secrets.SCRIPT_ID }}",
+            "rootDir": "src"
+          }
+          EOS
+
+      - name: Push to Google Apps Script
+        run: yarn clasp push -f
